@@ -1,0 +1,16 @@
+{
+  "name": "couchdb2neo4j",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "couchdb-dump": "^2.2.1",
+    "json2csv": "^3.4.2",
+    "neo4j-driver": "^1.0.1"
+  }
+}
