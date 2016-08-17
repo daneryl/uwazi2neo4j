@@ -8,39 +8,59 @@ var driver = neo4j.driver("bolt://localhost", neo4j.auth.basic("neo4j", "1234"))
 var session = driver.session();
 
 // Run a Cypher statement, reading the result in a streaming manner as records arrive:
-fs.readFile('./documents.json', function read(err, data) {
+fs.readFile('./database.json', function read(err, data) {
   if (err) {
     throw err;
   }
 
-  var documents = JSON.parse(data);
+  var database = JSON.parse(data).docs;
 
-  fs.readFile('./templates.json', function read(err, data) {
-    if (err) {
-        throw err;
+  docs = {};
+
+  database.forEach(function(doc){
+    if(!docs[doc.type]) {
+      docs[doc.type] = [];
     }
+    docs[doc.type].push(doc);
+  });
 
-    var templates = JSON.parse(data);
-    
-    query("MATCH (n) DETACH DELETE n")
-    .then(function() {
-      return query("WITH {json} as data UNWIND data as document create (:Document {id: document._id, title: document.title, template: document.template})", {json: documents});
-    })
-    .then(function() {
-      return query("WITH {json} as data UNWIND data as template create (:Template {id: template._id, name: template.name})", {json: templates});
-    })
-    .then(function() {
-      return query("MATCH (d:Document), (t:Template) WHERE EXISTS (d.template) AND EXISTS (t.id) AND d.template=t.id CREATE (d)-[:BELONGS]->(t)");
-    })
-    .then(function() {
-      console.log('IMPORT SUCCESFULL !');
-      process.exit();
-    })
-    .catch(function(error) {
-      console.log(error);
-      process.exit()
-    });
+  console.log(Object.keys(docs));
 
+  query("MATCH (n) DETACH DELETE n")
+  .then(function() {
+    return query(
+      "WITH {json} as data UNWIND data as connection create (:Connection {id: connection._id, sourceDocument: connection.sourceDocument, targetDocument: connection.targetDocument})",
+      {json: docs.reference}
+    );
+  })
+  .then(function() {
+    return query(
+      "WITH {json} as data UNWIND data as document create (:Document {id: document._id, title: document.title, template: document.template})",
+      {json: docs.document}
+    );
+  })
+  .then(function() {
+    return query(
+      "WITH {json} as data UNWIND data as template create (:Template {id: template._id, name: template.name})",
+      {json: docs.template}
+    );
+  })
+  .then(function() {
+    return query("MATCH (d:Document), (t:Template) WHERE EXISTS (d.template) AND EXISTS (t.id) AND d.template=t.id CREATE (d)-[:BELONGS]->(t)");
+  })
+  .then(function() {
+    return query("MATCH (d:Document), (c:Connection) WHERE EXISTS (d.id) AND EXISTS (c.sourceDocument) AND d.id=c.sourceDocument CREATE (c)-[:ORIGINATES]->(d)");
+  })
+  .then(function() {
+    return query("MATCH (d:Document), (c:Connection) WHERE EXISTS (d.id) AND EXISTS (c.targetDocument) AND d.id=c.targetDocument CREATE (c)-[:GOES_TO]->(d)");
+  })
+  .then(function() {
+    console.log('IMPORT SUCCESFULL !');
+    process.exit();
+  })
+  .catch(function(error) {
+    console.log(error);
+    process.exit()
   });
 });
 
