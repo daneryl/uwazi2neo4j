@@ -108,6 +108,33 @@ fs.readFile('./database.json', function read(err, data) {
   //   }))
   // })
 
+// Judge and comision sex
+  // .then(function() {
+  //   return Promise.all(docs.entity.map(function(entity){
+  //       if(!entity.metadata.sexo){
+  //         return Promise.resolve()
+  //       }
+  //     return query(
+  //       "WITH {json} AS data UNWIND data AS metadata MATCH (e:Entidad) WHERE e.type='Juez y/o Comisionado' AND e.id= '"+entity._id+"' AND metadata.sexo='1' SET e.sexo='Mujer' ",
+  //       {json: entity.metadata}
+  //     );    
+  //   }))
+  // })
+  // .then(function() {
+  //   return Promise.all(docs.entity.map(function(entity){
+  //       if(!entity.metadata.sexo){
+  //         return Promise.resolve()
+  //       }
+  //     return query(
+  //       "WITH {json} AS data UNWIND data AS metadata MATCH (e:Entidad) WHERE e.type='Juez y/o Comisionado' AND e.id= '"+entity._id+"' AND metadata.sexo='2' SET e.sexo='Hombre' ",
+  //       {json: entity.metadata}
+  //     );    
+  //   }))
+  // })
+
+
+
+
 
 
 
@@ -221,19 +248,30 @@ fs.readFile('./database.json', function read(err, data) {
   // })
 
 // Relation between mechanisms and countries (WORK_IN)
+  // .then(function() {
+  //   return Promise.all(docs.entity.map(function(entity){
+  //       if(!entity.metadata.paises){
+  //         return Promise.resolve()
+  //       }
+  //     return query(
+  //       "WITH {json} AS data UNWIND data AS paisId MATCH (mecanismo:Entidad), (pais:Entidad) WHERE mecanismo.type='Mecanismo' AND pais.type='País' AND mecanismo.id='"+entity._id+"' AND paisId=pais.id CREATE (mecanismo)-[:WORK_IN]->(pais) ",
+  //       {json: entity.metadata.paises}
+  //     );    
+  //   }))
+  // })
+
+// Relation between judges or comisions and countries (IS_FROM)
   .then(function() {
     return Promise.all(docs.entity.map(function(entity){
-        if(!entity.metadata.paises){
+        if(!entity.metadata.pa_s){
           return Promise.resolve()
         }
       return query(
-        "WITH {json} AS data UNWIND data AS metadata MATCH (mecanismo:Entidad), (pais:Entidad) WHERE mecanismo.type='Mecanismo' AND pais.type='País' AND mecanismo.id='"+entity._id+"' AND metadata.paises=pais.id CREATE (mecanismo)-[:WORK_IN]->(pais) ",
+        "WITH {json} AS data UNWIND data AS metadata MATCH (juez:Entidad), (pais:Entidad) WHERE juez.type='Juez y/o Comisionado' AND pais.type='País' AND juez.id='"+entity._id+"' AND metadata.pa_s=pais.id CREATE (juez)-[:IS_FROM]->(pais) ",
         {json: entity.metadata}
       );    
     }))
   })
-
-
 
 
 
