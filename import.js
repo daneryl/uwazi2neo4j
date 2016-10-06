@@ -36,7 +36,7 @@ fs.readFile('./database.json', function read(err, data) {
 
 
 
-// -------------- Creating structure of nodes -----------------------------
+// -------------------------- Creating structure of nodes --------------------------------------------------------
 
 
 // Create nodes DOCUMENTO with their different labels (Sentencia, Orden...). By now missing the fullText
@@ -52,13 +52,13 @@ fs.readFile('./database.json', function read(err, data) {
           "CREATE (:Documento:`"+templateType.name+"` {id: '"+document._id+"', type: '"+templateType.name+"'})");
     }))//                                                             , text: "+document.fullText+"
   })
-// Adding names of the documents (inside function before, issues while reading titles with special characters)
-  .then(function() {
-    return query(
-      "WITH {json} AS data UNWIND data AS metadata MATCH (d:Documento) WHERE d.id=metadata._id SET d.name=metadata.title ",
-      {json: docs.document}
-    );    
-  })
+// // Adding names of the documents (inside function before, issues while reading titles with special characters)
+//   .then(function() {
+//     return query(
+//       "WITH {json} AS data UNWIND data AS metadata MATCH (d:Documento) WHERE d.id=metadata._id SET d.name=metadata.title ",
+//       {json: docs.document}
+//     );    
+//   })
 
 
 // Create nodes ENTIDAD with their different labels (Pais, Mecanismo...)
@@ -74,60 +74,73 @@ fs.readFile('./database.json', function read(err, data) {
         "CREATE (:Entidad:`"+templateType.name+"` {id: '"+entity._id+"', type: '"+templateType.name+"' })");
     }))
   })
-// Adding names of the entities avoiding issues with special characters inside names
-  .then(function() {
-    return query(
-      "WITH {json} AS data UNWIND data AS names MATCH (d:Entidad) WHERE d.id=names._id SET d.name=names.title ",
-      {json: docs.entity}
-    );    
-  })
+// // Adding names of the entities avoiding issues with special characters inside names
+//   .then(function() {
+//     return query(
+//       "WITH {json} AS data UNWIND data AS names MATCH (d:Entidad) WHERE d.id=names._id SET d.name=names.title ",
+//       {json: docs.entity}
+//     );    
+//   })
 
 
-// Adding resume to MECHANISM (documento.metadata.resumen)
-  .then(function() {
-    return Promise.all(docs.entity.map(function(entity){
-        if(!entity.metadata.resumen){
-          return Promise.resolve()
-        }
-      return query(
-        "WITH {json} AS data UNWIND data AS metadata MATCH (e:Entidad) WHERE e.type='Mecanismo' AND e.id= '"+entity._id+"' SET e.resumen=metadata.resumen",
-        {json: entity.metadata}
-      );    
-    }))
-  })
+// // Adding resume to MECHANISM and CAUSE (documento.metadata.resumen)
+//   .then(function() {
+//     return Promise.all(docs.entity.map(function(entity){
+//         if(!entity.metadata.resumen){
+//           return Promise.resolve()
+//         }
+//       return query(
+//         "WITH {json} AS data UNWIND data AS metadata MATCH (e:Entidad) WHERE e.id= '"+entity._id+"' SET e.resumen=metadata.resumen",
+//         {json: entity.metadata}
+//       );    
+//     }))
+//   })
 
 
-// Adding JUDGE/COMISION sex
-// Women
-  .then(function() {
-    return Promise.all(docs.entity.map(function(entity){
-        if(!entity.metadata.sexo){
-          return Promise.resolve()
-        }
-      return query(
-        "WITH {json} AS data UNWIND data AS metadata MATCH (e:Entidad) WHERE e.type='Juez y/o Comisionado' AND e.id= '"+entity._id+"' AND metadata.sexo='1' SET e.sexo='Mujer' ",
-        {json: entity.metadata}
-      );    
-    }))
-  })
-// Men
-  .then(function() {
-    return Promise.all(docs.entity.map(function(entity){
-        if(!entity.metadata.sexo){
-          return Promise.resolve()
-        }
-      return query(
-        "WITH {json} AS data UNWIND data AS metadata MATCH (e:Entidad) WHERE e.type='Juez y/o Comisionado' AND e.id= '"+entity._id+"' AND metadata.sexo='2' SET e.sexo='Hombre' ",
-        {json: entity.metadata}
-      );    
-    }))
-  })
+// // Adding JUDGE/COMISION sex
+// // Women
+//   .then(function() {
+//     return Promise.all(docs.entity.map(function(entity){
+//         if(!entity.metadata.sexo){
+//           return Promise.resolve()
+//         }
+//       return query(
+//         "WITH {json} AS data UNWIND data AS metadata MATCH (e:Entidad) WHERE e.type='Juez y/o Comisionado' AND e.id= '"+entity._id+"' AND metadata.sexo='1' SET e.sexo='Mujer' ",
+//         {json: entity.metadata}
+//       );    
+//     }))
+//   })
+// // Men
+//   .then(function() {
+//     return Promise.all(docs.entity.map(function(entity){
+//         if(!entity.metadata.sexo){
+//           return Promise.resolve()
+//         }
+//       return query(
+//         "WITH {json} AS data UNWIND data AS metadata MATCH (e:Entidad) WHERE e.type='Juez y/o Comisionado' AND e.id= '"+entity._id+"' AND metadata.sexo='2' SET e.sexo='Hombre' ",
+//         {json: entity.metadata}
+//       );    
+//     }))
+//   })
+
+
+  // // Causa --> Thesauri NOOOOOOOOOOOT WORKINGGGGGGG
+  // .then(function() {
+  //   return Promise.all(docs.entity.map(function(entity){
+  //       if(!entity.metadata.descriptores){
+  //         return Promise.resolve()
+  //       }
+  //     return query(
+  //       "WITH {json} AS data UNWIND data AS values MATCH (e:Entidad) WHERE e.type='Causa' AND e.id= '"+entity._id+"' AND values.id='"+entity.metadata.descriptores+"' SET e.descriptor=values.label ",
+  //       {json: docs.thesauri.values}//                                                                                                                        fallo porque son mas de 1 descriptor y no se pueden llamar todos igual... meter como index????
+  //     );    
+  //   }))
+  // })
 
 
 
 
-
-// -------------- Creating relationships -----------------------------
+// -------------------------- Creating relationships ------------------------------------------------------
 
 // USING REFERENCES (Documento--Entidad):
 
@@ -148,102 +161,116 @@ fs.readFile('./database.json', function read(err, data) {
     }))
   })
 
-  // Documento --> [Reference] --> Causa (BELONGS_TO)
-  .then(function() {
-      return Promise.all(docs.reference.map(function(reference){
-        var doc = docs.document.find(function(document){
-          return  document._id === reference.sourceDocument
-        });
-        var ent = docs.entity.find(function(entity){
-          return  entity._id === reference.targetDocument
-        });
-        if(!doc || !ent){
-          return Promise.resolve()
-        }
-      return query(
-          "MATCH (d:Documento), (e:Entidad) WHERE e.type='Causa' AND d.id= '"+doc._id+"' AND e.id= '"+ent._id+"' CREATE (d)-[:BELONGS_TO]->(e)");
-    }))
-  })
+//   // Documento --> [Reference] --> Causa (BELONGS_TO)
+//   .then(function() {
+//       return Promise.all(docs.reference.map(function(reference){
+//         var doc = docs.document.find(function(document){
+//           return  document._id === reference.sourceDocument
+//         });
+//         var ent = docs.entity.find(function(entity){
+//           return  entity._id === reference.targetDocument
+//         });
+//         if(!doc || !ent){
+//           return Promise.resolve()
+//         }
+//       return query(
+//           "MATCH (d:Documento), (e:Entidad) WHERE e.type='Causa' AND d.id= '"+doc._id+"' AND e.id= '"+ent._id+"' CREATE (d)-[:BELONGS_TO]->(e)");
+//     }))
+//   })
 
-  // Documento --> [Reference] --> Mecanismo (CARRIED_BY)
-  .then(function() {
-      return Promise.all(docs.reference.map(function(reference){
-        var doc = docs.document.find(function(document){
-          return  document._id === reference.sourceDocument
-        });
-        var ent = docs.entity.find(function(entity){
-          return  entity._id === reference.targetDocument
-        });
-        if(!doc || !ent){
-          return Promise.resolve()
-        }
-      return query(
-          "MATCH (d:Documento), (e:Entidad) WHERE e.type='Mecanismo' AND d.id= '"+doc._id+"' AND e.id= '"+ent._id+"' CREATE (d)-[:CARRIED_BY]->(e)");
-    }))
-  })
+//   // Documento --> [Reference] --> Mecanismo (CARRIED_BY)
+//   .then(function() {
+//       return Promise.all(docs.reference.map(function(reference){
+//         var doc = docs.document.find(function(document){
+//           return  document._id === reference.sourceDocument
+//         });
+//         var ent = docs.entity.find(function(entity){
+//           return  entity._id === reference.targetDocument
+//         });
+//         if(!doc || !ent){
+//           return Promise.resolve()
+//         }
+//       return query(
+//           "MATCH (d:Documento), (e:Entidad) WHERE e.type='Mecanismo' AND d.id= '"+doc._id+"' AND e.id= '"+ent._id+"' CREATE (d)-[:CARRIED_BY]->(e)");
+//     }))
+//   })
 
-  // Documento --> [Reference] --> Asunto (ASUNTOOOO)
-  .then(function() {
-      return Promise.all(docs.reference.map(function(reference){
-        var doc = docs.document.find(function(document){
-          return  document._id === reference.sourceDocument
-        });
-        var ent = docs.entity.find(function(entity){
-          return  entity._id === reference.targetDocument
-        });
-        if(!doc || !ent){
-          return Promise.resolve()
-        }
-      return query(
-          "MATCH (d:Documento), (e:Entidad) WHERE e.type='Asunto' AND d.id= '"+doc._id+"' AND e.id= '"+ent._id+"' CREATE (d)-[:ASUNTOOOO]->(e)");
-    }))
-  })
+//   // Documento --> [Reference] --> Asunto (ASUNTOOOO)
+//   .then(function() {
+//       return Promise.all(docs.reference.map(function(reference){
+//         var doc = docs.document.find(function(document){
+//           return  document._id === reference.sourceDocument
+//         });
+//         var ent = docs.entity.find(function(entity){
+//           return  entity._id === reference.targetDocument
+//         });
+//         if(!doc || !ent){
+//           return Promise.resolve()
+//         }
+//       return query(
+//           "MATCH (d:Documento), (e:Entidad) WHERE e.type='Asunto' AND d.id= '"+doc._id+"' AND e.id= '"+ent._id+"' CREATE (d)-[:ASUNTOOOO]->(e)");
+//     }))
+//   })
 
-  // Documento --> [Reference] --> Juez y/o Comisionado (WAS_SIGNED_BY)
-  .then(function() {
-      return Promise.all(docs.reference.map(function(reference){
-        var doc = docs.document.find(function(document){
-          return  document._id === reference.sourceDocument
-        });
-        var ent = docs.entity.find(function(entity){
-          return  entity._id === reference.targetDocument
-        });
-        if(!doc || !ent){
-          return Promise.resolve()
-        }
-      return query(
-          "MATCH (d:Documento), (e:Entidad) WHERE e.type='Juez y/o Comisionado' AND d.id= '"+doc._id+"' AND e.id= '"+ent._id+"' CREATE (d)-[:WAS_SIGNED_BY]->(e)");
-    }))
-  })
+//   // Documento --> [Reference] --> Juez y/o Comisionado (WAS_SIGNED_BY)
+//   .then(function() {
+//       return Promise.all(docs.reference.map(function(reference){
+//         var doc = docs.document.find(function(document){
+//           return  document._id === reference.sourceDocument
+//         });
+//         var ent = docs.entity.find(function(entity){
+//           return  entity._id === reference.targetDocument
+//         });
+//         if(!doc || !ent){
+//           return Promise.resolve()
+//         }
+//       return query(
+//           "MATCH (d:Documento), (e:Entidad) WHERE e.type='Juez y/o Comisionado' AND d.id= '"+doc._id+"' AND e.id= '"+ent._id+"' CREATE (d)-[:WAS_SIGNED_BY]->(e)");
+//     }))
+//   })
 
 
-// USING ENTITIES (Entidad--Entidad):
+// // USING ENTITIES (Entidad--Entidad):
 
-  // Relation between mechanisms and countries (WORK_IN)
-  .then(function() {
-    return Promise.all(docs.entity.map(function(entity){
-        if(!entity.metadata.paises){
-          return Promise.resolve()
-        }
-      return query(
-        "WITH {json} AS data UNWIND data AS paisId MATCH (mecanismo:Entidad), (pais:Entidad) WHERE mecanismo.type='Mecanismo' AND pais.type='País' AND mecanismo.id='"+entity._id+"' AND paisId=pais.id CREATE (mecanismo)-[:WORK_IN]->(pais) ",
-        {json: entity.metadata.paises}
-      );    
-    }))
-  })
+//   // Relation between mechanisms and countries (WORK_IN)
+//   .then(function() {
+//     return Promise.all(docs.entity.map(function(entity){
+//         if(!entity.metadata.paises){
+//           return Promise.resolve()
+//         }
+//       return query(
+//         "WITH {json} AS data UNWIND data AS paisId MATCH (mecanismo:Entidad), (pais:Entidad) WHERE mecanismo.type='Mecanismo' AND pais.type='País' AND mecanismo.id='"+entity._id+"' AND paisId=pais.id CREATE (mecanismo)-[:WORK_IN]->(pais) ",
+//         {json: entity.metadata.paises}
+//       );    
+//     }))
+//   })
 
-  // Relation between judges or comisions and countries (IS_FROM)
-  .then(function() {
-    return Promise.all(docs.entity.map(function(entity){
-        if(!entity.metadata.pa_s){
-          return Promise.resolve()
-        }
-      return query(
-        "WITH {json} AS data UNWIND data AS metadata MATCH (juez:Entidad), (pais:Entidad) WHERE juez.type='Juez y/o Comisionado' AND pais.type='País' AND juez.id='"+entity._id+"' AND metadata.pa_s=pais.id CREATE (juez)-[:IS_FROM]->(pais) ",
-        {json: entity.metadata}
-      );    
-    }))
-  })
+//   // Relation between judges or comisions and countries (IS_FROM)
+//   .then(function() {
+//     return Promise.all(docs.entity.map(function(entity){
+//         if(!entity.metadata.pa_s){
+//           return Promise.resolve()
+//         }
+//       return query(
+//         "WITH {json} AS data UNWIND data AS metadata MATCH (juez:Entidad), (pais:Entidad) WHERE juez.type='Juez y/o Comisionado' AND pais.type='País' AND juez.id='"+entity._id+"' AND metadata.pa_s=pais.id CREATE (juez)-[:IS_FROM]->(pais) ",
+//         {json: entity.metadata}
+//       );    
+//     }))
+//   })
+
+  // // Relation between cause/subject and countries (REFERS_TO)
+  // .then(function() {
+  //   return Promise.all(docs.entity.map(function(entity){
+  //       if(!entity.metadata.pa_s){
+  //         return Promise.resolve()
+  //       }
+  //     return query(
+  //       "WITH {json} AS data UNWIND data AS metadata MATCH (causa:Entidad), (pais:Entidad) WHERE NOT causa.type='Juez y/o Comisionado' AND pais.type='País' AND causa.id='"+entity._id+"' AND metadata.pa_s=pais.id CREATE (causa)-[:REFERS_TO]->(pais) ",
+  //       {json: entity.metadata}
+  //     );    
+  //   }))
+  // })
+
 
 
 
