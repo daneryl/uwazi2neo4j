@@ -297,10 +297,10 @@ fs.readFile('./database.json', function read(err, data) {
   // })
 
   // Relation between cause and provisional meassure (if they exist) (cause CONTAINS a provisional meassure)
-  // .then(function() {
-  //   return query(
-  //     "MATCH (causa:Causa) WITH causa MATCH (asunto:Asunto) WHERE causa.name=asunto.name CREATE (causa)-[:CONTAINS]->(asunto) ");    
-  // })
+  .then(function() {
+    return query(
+      "MATCH (causa:Causa) WITH causa MATCH (asunto:Asunto) WHERE causa.name=asunto.name CREATE (causa)-[:CONTAINS]->(asunto) ");    
+  })
 
 
 
