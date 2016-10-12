@@ -40,18 +40,18 @@ fs.readFile('./database.json', function read(err, data) {
 
 
 // Create nodes DOCUMENTO with their different labels (Sentencia, Orden...). By now missing the fullText
-  .then(function() {
-      return Promise.all(docs.document.map(function(document){
-        var templateType = docs.template.find(function(template){
-          return  template._id === document.template
-        });
-        if(!templateType){
-          return Promise.resolve()
-        }
-      return query(
-          "CREATE (:Documento:`"+templateType.name+"` {id: '"+document._id+"', type: '"+templateType.name+"'})");
-    }))//                                                             , text: "+document.fullText+"
-  })
+  // .then(function() {
+  //     return Promise.all(docs.document.map(function(document){
+  //       var templateType = docs.template.find(function(template){
+  //         return  template._id === document.template
+  //       });
+  //       if(!templateType){
+  //         return Promise.resolve()
+  //       }
+  //     return query(
+  //         "CREATE (:Documento:`"+templateType.name+"` {id: '"+document._id+"', type: '"+templateType.name+"'})");
+  //   }))//                                                             , text: "+document.fullText+"
+  // })
 // // Adding names of the documents (inside function before, issues while reading titles with special characters)
 //   .then(function() {
 //     return query(
@@ -61,7 +61,7 @@ fs.readFile('./database.json', function read(err, data) {
 //   })
 
 
-// Create nodes ENTIDAD with their different labels (Pais, Mecanismo...)
+// Create nodes ENTIDAD with their different labels (Pais, Mecanismo, Causa...)
   .then(function() {
       return Promise.all(docs.entity.map(function(entity){
         var templateType = docs.template.find(function(template){
@@ -74,16 +74,16 @@ fs.readFile('./database.json', function read(err, data) {
         "CREATE (:Entidad:`"+templateType.name+"` {id: '"+entity._id+"', type: '"+templateType.name+"' })");
     }))
   })
-// // Adding names of the entities avoiding issues with special characters inside names
-//   .then(function() {
-//     return query(
-//       "WITH {json} AS data UNWIND data AS names MATCH (d:Entidad) WHERE d.id=names._id SET d.name=names.title ",
-//       {json: docs.entity}
-//     );    
-//   })
+// Adding names of the entities avoiding issues with special characters inside names
+  .then(function() {
+    return query(
+      "WITH {json} AS data UNWIND data AS names MATCH (d:Entidad) WHERE d.id=names._id SET d.name=names.title ",
+      {json: docs.entity}
+    );    
+  })
 
 
-// // Adding resume to MECHANISM and CAUSE (documento.metadata.resumen)
+// // Adding resume to entities (MECHANISM, PROVISIONAL MEASSURE and CAUSE)  
 //   .then(function() {
 //     return Promise.all(docs.entity.map(function(entity){
 //         if(!entity.metadata.resumen){
@@ -124,19 +124,18 @@ fs.readFile('./database.json', function read(err, data) {
 //   })
 
 
-  // // Causa --> Thesauri NOOOOOOOOOOOT WORKINGGGGGGG
+  // Thesauri nodes (dictionaries)
   // .then(function() {
-  //   return Promise.all(docs.entity.map(function(entity){
-  //       if(!entity.metadata.descriptores){
+  //   return Promise.all(docs.thesauri.map(function(thesauri){
+  //       if(!thesauri){
   //         return Promise.resolve()
   //       }
   //     return query(
-  //       "WITH {json} AS data UNWIND data AS values MATCH (e:Entidad) WHERE e.type='Causa' AND e.id= '"+entity._id+"' AND values.id='"+entity.metadata.descriptores+"' SET e.descriptor=values.label ",
-  //       {json: docs.thesauri.values}//                                                                                                                        fallo porque son mas de 1 descriptor y no se pueden llamar todos igual... meter como index????
+  //       "WITH {json} AS data UNWIND data AS values CREATE (:Dictionary:`"+thesauri.name+"` {value: values.id, name: values.label, type: '"+thesauri.name+"'}) ",
+  //       {json: thesauri.values}
   //     );    
   //   }))
   // })
-
 
 
 
@@ -145,21 +144,21 @@ fs.readFile('./database.json', function read(err, data) {
 // USING REFERENCES (Documento--Entidad):
 
   // Documento --> [Reference] --> Pais (HAPPENED_AT)
-  .then(function() {
-      return Promise.all(docs.reference.map(function(reference){
-        var doc = docs.document.find(function(document){
-          return  document._id === reference.sourceDocument
-        });
-        var ent = docs.entity.find(function(entity){
-          return  entity._id === reference.targetDocument
-        });
-        if(!doc || !ent){
-          return Promise.resolve()
-        }
-      return query(
-          "MATCH (d:Documento), (e:Entidad) WHERE e.type='País' AND d.id= '"+doc._id+"' AND e.id= '"+ent._id+"' CREATE (d)-[:HAPPENED_AT]->(e)");
-    }))
-  })
+//   .then(function() {
+//       return Promise.all(docs.reference.map(function(reference){
+//         var doc = docs.document.find(function(document){
+//           return  document._id === reference.sourceDocument
+//         });
+//         var ent = docs.entity.find(function(entity){
+//           return  entity._id === reference.targetDocument
+//         });
+//         if(!doc || !ent){
+//           return Promise.resolve()
+//         }
+//       return query(
+//           "MATCH (d:Documento), (e:Entidad) WHERE e.type='País' AND d.id= '"+doc._id+"' AND e.id= '"+ent._id+"' CREATE (d)-[:HAPPENED_AT]->(e)");
+//     }))
+//   })
 
 //   // Documento --> [Reference] --> Causa (BELONGS_TO)
 //   .then(function() {
@@ -258,18 +257,51 @@ fs.readFile('./database.json', function read(err, data) {
 //     }))
 //   })
 
-  // // Relation between cause/subject and countries (REFERS_TO)
+//   // Relation between cause/subject and countries (REFERS_TO)
+//   .then(function() {
+//     return Promise.all(docs.entity.map(function(entity){
+//         if(!entity.metadata.pa_s){
+//           return Promise.resolve()
+//         }
+//       return query(
+//         "WITH {json} AS data UNWIND data AS metadata MATCH (causa:Entidad), (pais:Entidad) WHERE NOT causa.type='Juez y/o Comisionado' AND pais.type='País' AND causa.id='"+entity._id+"' AND metadata.pa_s=pais.id CREATE (causa)-[:REFERS_TO]->(pais) ",
+//         {json: entity.metadata}
+//       );    
+//     }))
+//   })
+
+  // Relation between cause/provisional meassure and "descriptores" (DESCRIBES/LABELED/AFFECTS/EXPLAIN)
   // .then(function() {
   //   return Promise.all(docs.entity.map(function(entity){
-  //       if(!entity.metadata.pa_s){
-  //         return Promise.resolve()
-  //       }
+  //     if(!entity.metadata.descriptores){
+  //       return Promise.resolve()
+  //     }
   //     return query(
-  //       "WITH {json} AS data UNWIND data AS metadata MATCH (causa:Entidad), (pais:Entidad) WHERE NOT causa.type='Juez y/o Comisionado' AND pais.type='País' AND causa.id='"+entity._id+"' AND metadata.pa_s=pais.id CREATE (causa)-[:REFERS_TO]->(pais) ",
-  //       {json: entity.metadata}
+  //       "WITH {json} AS data UNWIND data AS descriptoresId MATCH (dictionary:Dictionary {type: 'Descriptores'}), (causunto:Entidad) WHERE causunto.id='"+entity._id+"' AND descriptoresId=dictionary.value CREATE (causunto)-[:DESCRIBES]->(dictionary) ",
+  //       {json: entity.metadata.descriptores}
   //     );    
   //   }))
   // })
+
+  // Relation between "documento" and thesauri "tipo" (IS_TYPE)
+  // .then(function() {
+  //   return Promise.all(docs.document.map(function(document){
+  //     if(!document.metadata.tipo){
+  //       return Promise.resolve()
+  //     }
+  //     return query(
+  //       "WITH {json} AS data UNWIND data AS tipoId MATCH (dictionary:Dictionary {type: 'Tipos'}), (doc:Documento) WHERE doc.id='"+document._id+"' AND tipoId=dictionary.value CREATE (doc)-[:IS_TYPE]->(dictionary) ",
+  //       {json: document.metadata.tipo}
+  //     );    
+  //   }))
+  // })
+
+  // Relation between cause and provisional meassure (if they exist) (cause CONTAINS a provisional meassure)
+  // .then(function() {
+  //   return query(
+  //     "MATCH (causa:Causa) WITH causa MATCH (asunto:Asunto) WHERE causa.name=asunto.name CREATE (causa)-[:CONTAINS]->(asunto) ");    
+  // })
+
 
 
 
